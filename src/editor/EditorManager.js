@@ -60,7 +60,8 @@ define(function (require, exports, module) {
         InlineTextEditor    = require("editor/InlineTextEditor").InlineTextEditor,
         ImageViewer         = require("editor/ImageViewer"),
         Strings             = require("strings"),
-        LanguageManager     = require("language/LanguageManager");
+        LanguageManager     = require("language/LanguageManager"),
+        FileUtils           = require("file/FileUtils");
     
     /** @type {jQueryObject} DOM node that contains all editors (visible and hidden alike) */
     var _editorHolder = null;
@@ -649,32 +650,45 @@ define(function (require, exports, module) {
      * @param {!string} fullPath  path to the file displayed in the custom view
      */
     function showCustomViewer(provider, fullPath) {
-        // Don't show the same custom view again if file path
-        // and view provider are still the same.
-        if (_currentlyViewedPath === fullPath &&
-                _currentViewProvider === provider) {
-            return;
+        function _doShow() {
+            // Don't show the same custom view again if file path
+            // and view provider are still the same.
+            if (_currentlyViewedPath === fullPath &&
+                    _currentViewProvider === provider) {
+                return;
+            }
+            
+            // Clean up currently viewing document or custom viewer
+            DocumentManager._clearCurrentDocument();
+            _removeCustomViewer();
+        
+            // Hide the not-editor or reset current editor
+            $("#not-editor").css("display", "none");
+            _nullifyEditor();
+    
+            _currentViewProvider = provider;
+            _$currentCustomViewer = provider.getCustomViewHolder(fullPath);
+    
+            // place in window
+            $("#editor-holder").append(_$currentCustomViewer);
+            
+            // add path, dimensions and file size to the view after loading image
+            provider.render(fullPath);
+            
+            _setCurrentlyViewedPath(fullPath);
         }
         
-        // Clean up currently viewing document or custom viewer
-        DocumentManager._clearCurrentDocument();
-        _removeCustomViewer();
-    
-        // Hide the not-editor or reset current editor
-        $("#not-editor").css("display", "none");
-        _nullifyEditor();
-
-        _currentViewProvider = provider;
-        _$currentCustomViewer = provider.getCustomViewHolder(fullPath);
-
-        // place in window
-        $("#editor-holder").append(_$currentCustomViewer);
-        
-        // add path, dimensions and file size to the view after loading image
-        provider.render(fullPath);
-        
-        _setCurrentlyViewedPath(fullPath);
+        FileUtils.fileExists(fullPath).done(
+            _doShow
+        ).fail(function (nativeError) {
+            FileUtils.showFileOpenError(nativeError.name, fullPath).done(
+                function () {
+                    _removeCustomViewer();
+                }
+            );
+        });
     }
+               
 
     /**
      * Check whether the given file is currently open in a custom viewer.

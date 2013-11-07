@@ -456,6 +456,26 @@ define(function (require, exports, module) {
         
         return extFirst ? (cmpExt || cmpNames) : (cmpNames || cmpExt);
     }
+    
+    /*
+     *
+     */
+    function fileExists(fullPath) {
+        var fileEntry = new NativeFileSystem.FileEntry(fullPath),
+            returnVal,
+            result = new $.Deferred();
+        
+        fileEntry.getMetadata(
+            function (metadata) {
+                result.resolve();
+            },
+            function (error) {
+                var nativeError = new NativeFileError(NativeFileSystem._fsErrorToDOMErrorName(error));
+                result.reject(nativeError);
+            }
+        );
+        return result.promise();
+    }
 
 
     // Define public API
@@ -483,4 +503,5 @@ define(function (require, exports, module) {
     exports.getFileExtension               = getFileExtension;
     exports.getFilenameExtension           = getFilenameExtension;
     exports.compareFilenames               = compareFilenames;
+    exports.fileExists                     = fileExists;
 });
